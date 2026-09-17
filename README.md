@@ -346,3 +346,39 @@ app/api/routes/orders.py
 
 `app/api/router.py` is the shared router aggregator, and `app/main.py` includes only `api_router`.
 No Alembic migration is required.
+
+
+---
+
+# Automated tests and CI
+
+Automated tests live in `tests/` and use `pytest`.
+
+Install development dependencies:
+
+```cmd
+pip install -r requirements-dev.txt
+```
+
+Run:
+
+```cmd
+pytest
+```
+
+or with coverage:
+
+```cmd
+pytest --cov=app --cov-report=term-missing
+```
+
+GitHub Actions workflow:
+
+```text
+.github/workflows/tests.yml
+```
+
+It runs on every push and pull request, starts PostgreSQL, validates Alembic
+migrations, and runs the pytest suite.
+
+See `TESTING_AND_CI.md`.
