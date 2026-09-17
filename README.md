@@ -1,5 +1,7 @@
 # FastAPI Shop
 
+[![Tests](https://github.com/zerocoder524/fastapi_shop/actions/workflows/tests.yml/badge.svg)](https://github.com/zerocoder524/fastapi_shop/actions/workflows/tests.yml)
+
 Backend интернет-магазина на **FastAPI + PostgreSQL + SQLAlchemy 2 + JWT**.
 
 Рабочая папка проекта:
@@ -382,3 +384,19 @@ It runs on every push and pull request, starts PostgreSQL, validates Alembic
 migrations, and runs the pytest suite.
 
 See `TESTING_AND_CI.md`.
+
+
+## Edge-case coverage
+
+Дополнительно проверяются:
+
+- невалидный JWT → `401`;
+- JWT без `sub` → `401`;
+- валидный JWT для отсутствующего пользователя → `401`;
+- несуществующий товар в заказе → `404`;
+- ошибка БД при регистрации → `500` + rollback;
+- ошибка БД при создании товара → `500` + rollback;
+- ошибка БД при создании заказа → `500` + rollback и восстановление остатка;
+- корневой health endpoint `/`.
+
+CI удерживает покрытие приложения не ниже 95%.

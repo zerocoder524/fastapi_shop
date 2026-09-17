@@ -30,7 +30,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/fastapi_shop_test
       TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/fastapi_shop_test
-      SECRET_KEY: github-actions-test-secret
+      SECRET_KEY: github-actions-test-secret-0123456789abcdef
 
     steps:
       - name: Check out repository
@@ -57,4 +57,4 @@ jobs:
         run: alembic check
 
       - name: Run pytest
-        run: pytest --cov=app --cov-report=term-missing
+        run: pytest --cov=app --cov-report=term-missing --cov-fail-under=95

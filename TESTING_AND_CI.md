@@ -21,7 +21,7 @@ pytest
 With coverage:
 
 ```cmd
-pytest --cov=app --cov-report=term-missing
+pytest --cov=app --cov-report=term-missing --cov-fail-under=95
 ```
 
 Local tests use an isolated in-memory SQLite database by default, so they do
@@ -80,7 +80,19 @@ the development dependencies, then runs:
 ```text
 alembic upgrade head
 alembic check
-pytest --cov=app --cov-report=term-missing
+pytest --cov=app --cov-report=term-missing --cov-fail-under=95
 ```
 
 This means CI validates both Alembic migrations and the API test suite.
+
+
+### Edge cases
+- invalid JWT;
+- JWT without `sub`;
+- valid JWT for a user that no longer exists;
+- missing product in an order;
+- simulated database failures for registration, product creation and order creation;
+- rollback of stock after an order persistence failure;
+- root health endpoint.
+
+The CI build fails if application coverage drops below 95%.
