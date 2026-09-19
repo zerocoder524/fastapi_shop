@@ -36,6 +36,13 @@ class ProductRead(BaseModel):
     stock_quantity: int
     is_active: bool
 
+class ProductUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price: Decimal | None = None
+    stock_quantity: int | None = None
+    is_active: bool | None = None
+
 class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(ge=1, le=99)
@@ -60,3 +67,4 @@ class OrderRead(BaseModel):
     created_at: datetime
     total: Decimal
     items: list[OrderItemRead]
+

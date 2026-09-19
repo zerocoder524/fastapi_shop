@@ -32,5 +32,14 @@ def get_active_by_ids_for_update(
     )
 
 
+def get_by_id(
+    db: Session,
+    product_id: int,
+) -> Product | None:
+    return db.scalar(
+        select(Product).where(Product.id == product_id)
+    )
+
+
 def add(db: Session, product: Product) -> None:
     db.add(product)
