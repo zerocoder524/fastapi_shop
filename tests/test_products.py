@@ -112,17 +112,6 @@ def test_update_product_requires_authentication(client):
     assert response.status_code == 401
 
 
-def test_update_product_requires_authentication(client):
-    response = client.patch(
-        "/products/1",
-        json={
-            "stock_quantity": 5,
-        },
-    )
-
-    assert response.status_code == 401
-
-
 def test_soft_delete_product(
     client,
     auth_headers,
