@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -19,6 +20,7 @@ class User(Base):
 
     orders: Mapped[list["Order"]] = relationship(back_populates="user")
 
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -26,13 +28,14 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(255), index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    stock_quantity: Mapped[int] = mapped_column(
-        default=0,
-        server_default="0",
-    )
+    stock_quantity: Mapped[int] = mapped_column(default=0, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     order_items: Mapped[list["OrderItem"]] = relationship(back_populates="product")
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        back_populates="product"
+    )
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -49,6 +52,9 @@ class Order(Base):
         back_populates="order",
         cascade="all, delete-orphan",
     )
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        back_populates="order"
+    )
 
     @property
     def total(self) -> Decimal:
@@ -56,6 +62,7 @@ class Order(Base):
             (item.unit_price * item.quantity for item in self.items),
             start=Decimal("0.00"),
         )
+
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -68,3 +75,26 @@ class OrderItem(Base):
 
     order: Mapped["Order"] = relationship(back_populates="items")
     product: Mapped["Product"] = relationship(back_populates="order_items")
+
+
+class StockMovement(Base):
+    __tablename__ = "stock_movements"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), index=True)
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("orders.id"),
+        nullable=True,
+        index=True,
+    )
+    movement_type: Mapped[str] = mapped_column(String(30))
+    quantity_change: Mapped[int]
+    balance_after: Mapped[int]
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    product: Mapped["Product"] = relationship(back_populates="stock_movements")
+    order: Mapped["Order | None"] = relationship(back_populates="stock_movements")
