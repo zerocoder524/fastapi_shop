@@ -259,3 +259,250 @@ def test_replenish_database_error_rolls_back_stock(
     assert response.status_code == 500
     assert response.json()["detail"] == "Could not replenish stock"
     assert product_by_id(client, product["id"])["stock_quantity"] == 0
+
+
+def test_adjust_stock_requires_authentication(client):
+    response = client.post(
+        "/products/1/stock/adjust",
+        json={
+            "actual_quantity": 5,
+            "note": "Inventory count",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_adjust_stock_up_records_positive_discrepancy(
+    client,
+    auth_headers,
+):
+    product = create_product(
+        client,
+        auth_headers,
+        name="Adjustment up bouquet",
+        stock_quantity=5,
+    )
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 8,
+            "note": "Inventory count: three extra units found",
+        },
+    )
+
+    assert response.status_code == 201
+    movement = response.json()
+    assert movement["product_id"] == product["id"]
+    assert movement["order_id"] is None
+    assert movement["movement_type"] == "adjustment"
+    assert movement["quantity_change"] == 3
+    assert movement["balance_after"] == 8
+    assert movement["note"] == "Inventory count: three extra units found"
+    assert product_by_id(client, product["id"])["stock_quantity"] == 8
+
+
+def test_adjust_stock_down_records_negative_discrepancy(
+    client,
+    auth_headers,
+):
+    product = create_product(
+        client,
+        auth_headers,
+        name="Adjustment down bouquet",
+        stock_quantity=10,
+    )
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 4,
+            "note": "Inventory count: damaged units written off",
+        },
+    )
+
+    assert response.status_code == 201
+    movement = response.json()
+    assert movement["movement_type"] == "adjustment"
+    assert movement["quantity_change"] == -6
+    assert movement["balance_after"] == 4
+    assert product_by_id(client, product["id"])["stock_quantity"] == 4
+
+
+def test_adjust_stock_can_set_zero_actual_balance(
+    client,
+    auth_headers,
+):
+    product = create_product(
+        client,
+        auth_headers,
+        name="Zero count bouquet",
+        stock_quantity=5,
+    )
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 0,
+            "note": "Inventory count: no units physically present",
+        },
+    )
+
+    assert response.status_code == 201
+    movement = response.json()
+    assert movement["quantity_change"] == -5
+    assert movement["balance_after"] == 0
+    assert product_by_id(client, product["id"])["stock_quantity"] == 0
+
+
+def test_adjust_stock_rejects_negative_actual_quantity(
+    client,
+    auth_headers,
+):
+    product = create_product(client, auth_headers)
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": -1,
+            "note": "Invalid count",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_adjust_stock_requires_note(
+    client,
+    auth_headers,
+):
+    product = create_product(client, auth_headers)
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={"actual_quantity": 3},
+    )
+
+    assert response.status_code == 422
+
+
+def test_adjust_stock_missing_product_returns_404(
+    client,
+    auth_headers,
+):
+    response = client.post(
+        "/products/999999/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 3,
+            "note": "Inventory count",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Product not found or inactive"
+
+
+def test_adjust_stock_inactive_product_returns_404(
+    client,
+    auth_headers,
+):
+    product = create_product(client, auth_headers)
+
+    delete_response = client.delete(
+        f"/products/{product['id']}",
+        headers=auth_headers,
+    )
+    assert delete_response.status_code == 204
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 3,
+            "note": "Inventory count",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Product not found or inactive"
+
+
+def test_adjust_stock_same_quantity_returns_409_without_movement(
+    client,
+    auth_headers,
+):
+    product = create_product(
+        client,
+        auth_headers,
+        name="No discrepancy bouquet",
+        stock_quantity=5,
+    )
+
+    before_response = client.get(
+        f"/products/{product['id']}/stock/movements",
+        headers=auth_headers,
+    )
+    assert before_response.status_code == 200
+    before_history = before_response.json()
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 5,
+            "note": "Inventory count matches system",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Stock already matches actual quantity"
+    assert product_by_id(client, product["id"])["stock_quantity"] == 5
+
+    after_response = client.get(
+        f"/products/{product['id']}/stock/movements",
+        headers=auth_headers,
+    )
+    assert after_response.status_code == 200
+    assert after_response.json() == before_history
+
+
+def test_adjust_stock_database_error_rolls_back_balance(
+    client,
+    auth_headers,
+    monkeypatch,
+):
+    product = create_product(
+        client,
+        auth_headers,
+        name="Adjustment rollback bouquet",
+        stock_quantity=5,
+    )
+
+    def fail_add(db, movement):
+        raise SQLAlchemyError("forced adjustment movement failure")
+
+    monkeypatch.setattr(
+        stock_service.stock_movement_repository,
+        "add",
+        fail_add,
+    )
+
+    response = client.post(
+        f"/products/{product['id']}/stock/adjust",
+        headers=auth_headers,
+        json={
+            "actual_quantity": 2,
+            "note": "Inventory count",
+        },
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Could not adjust stock"
+    assert product_by_id(client, product["id"])["stock_quantity"] == 5
