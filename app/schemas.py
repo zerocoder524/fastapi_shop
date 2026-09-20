@@ -56,6 +56,11 @@ class StockReplenish(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class StockAdjustment(BaseModel):
+    actual_quantity: int = Field(ge=0, le=100_000)
+    note: str = Field(min_length=1, max_length=500)
+
+
 class StockMovementRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
