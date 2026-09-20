@@ -3,8 +3,12 @@ from __future__ import annotations
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from ..models import Order, OrderItem
-from ..repositories import order_repository, product_repository
+from ..models import Order, OrderItem, StockMovement
+from ..repositories import (
+    order_repository,
+    product_repository,
+    stock_movement_repository,
+)
 from ..schemas import OrderCreate
 
 
@@ -38,7 +42,7 @@ def create_order(
     user_id: int,
     data: OrderCreate,
 ) -> Order:
-    """Create an order and reduce stock atomically."""
+    """Create an order, reduce stock and record stock movements atomically."""
 
     product_ids = [item.product_id for item in data.items]
 
@@ -79,6 +83,7 @@ def create_order(
             raise InsufficientStockError(shortages)
 
         order = Order(user_id=user_id)
+        order_repository.add(db, order)
 
         for item in data.items:
             product = products_by_id[item.product_id]
@@ -92,7 +97,18 @@ def create_order(
                 )
             )
 
-        order_repository.add(db, order)
+            stock_movement_repository.add(
+                db,
+                StockMovement(
+                    product=product,
+                    order=order,
+                    movement_type="order",
+                    quantity_change=-item.quantity,
+                    balance_after=product.stock_quantity,
+                    note=None,
+                ),
+            )
+
         db.commit()
         return order
 

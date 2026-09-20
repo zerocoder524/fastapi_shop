@@ -15,6 +15,7 @@ from ...services.product_service import (
     list_products as list_products_service,
     update_product as update_product_service,
 )
+
 router = APIRouter(prefix="/products", tags=["products"])
 
 
@@ -32,7 +33,10 @@ def create_product(
     try:
         return create_product_service(db=db, data=data)
     except ProductPersistenceError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create product") from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create product",
+        ) from exc
 
 
 @router.patch(

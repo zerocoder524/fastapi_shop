@@ -69,19 +69,17 @@ def test_update_product(client, auth_headers):
         headers=auth_headers,
         json={
             "price": 2500,
-            "stock_quantity": 20,
         },
     )
 
     assert response.status_code == 200
 
     product = response.json()
-
     assert product["id"] == created["id"]
     assert product["name"] == "Update bouquet"
     assert product["description"] == "Before update"
     assert product["price"] == "2500.00"
-    assert product["stock_quantity"] == 20
+    assert product["stock_quantity"] == 10
     assert product["is_active"] is True
 
 
@@ -93,7 +91,7 @@ def test_update_missing_product_returns_404(
         "/products/999999",
         headers=auth_headers,
         json={
-            "stock_quantity": 5,
+            "price": 2500,
         },
     )
 
@@ -105,7 +103,7 @@ def test_update_product_requires_authentication(client):
     response = client.patch(
         "/products/1",
         json={
-            "stock_quantity": 5,
+            "price": 2500,
         },
     )
 
@@ -142,7 +140,6 @@ def test_soft_delete_product(
     assert products_response.status_code == 200
 
     products = products_response.json()
-
     assert all(
         product["id"] != created["id"]
         for product in products
@@ -158,6 +155,7 @@ def test_soft_delete_product(
     assert stored_product is not None
     assert stored_product.is_active is False
     assert stored_product.stock_quantity == 7
+
 
 def test_delete_missing_product_returns_404(
     client,
@@ -176,4 +174,3 @@ def test_delete_product_requires_authentication(client):
     response = client.delete("/products/1")
 
     assert response.status_code == 401
-

@@ -1,8 +1,8 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from ..models import Product
-from ..repositories import product_repository
+from ..models import Product, StockMovement
+from ..repositories import product_repository, stock_movement_repository
 from ..schemas import ProductCreate, ProductUpdate
 
 
@@ -36,6 +36,20 @@ def create_product(
 
     try:
         product_repository.add(db, product)
+        db.flush()
+
+        if product.stock_quantity > 0:
+            stock_movement_repository.add(
+                db,
+                StockMovement(
+                    product=product,
+                    movement_type="initial",
+                    quantity_change=product.stock_quantity,
+                    balance_after=product.stock_quantity,
+                    note="Initial stock",
+                ),
+            )
+
         db.commit()
         db.refresh(product)
         return product
@@ -52,10 +66,7 @@ def update_product(
     product_id: int,
     data: ProductUpdate,
 ) -> Product:
-    product = product_repository.get_by_id(
-        db,
-        product_id,
-    )
+    product = product_repository.get_by_id(db, product_id)
 
     if product is None:
         raise ProductNotFoundError("Product not found")
@@ -81,10 +92,7 @@ def delete_product(
     db: Session,
     product_id: int,
 ) -> None:
-    product = product_repository.get_by_id(
-        db,
-        product_id,
-    )
+    product = product_repository.get_by_id(db, product_id)
 
     if product is None:
         raise ProductNotFoundError("Product not found")
