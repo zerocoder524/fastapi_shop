@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...models import Product, User
 from ...schemas import ProductCreate, ProductRead, ProductUpdate
-from ...security import get_current_user
+from ...security import require_admin
 from ...services.product_service import (
     ProductNotFoundError,
     ProductPersistenceError,
@@ -28,7 +28,7 @@ def list_products(db: Annotated[Session, Depends(get_db)]) -> list[Product]:
 def create_product(
     data: ProductCreate,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> Product:
     try:
         return create_product_service(db=db, data=data)
@@ -47,7 +47,7 @@ def update_product(
     product_id: int,
     data: ProductUpdate,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> Product:
     try:
         return update_product_service(
@@ -74,7 +74,7 @@ def update_product(
 def delete_product(
     product_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> None:
     try:
         delete_product_service(

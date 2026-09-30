@@ -77,7 +77,7 @@ def test_register_database_error_returns_500(
 
 def test_create_product_database_error_returns_500_and_rolls_back(
     client,
-    auth_headers,
+    admin_headers,
     monkeypatch,
 ):
     def fail_add(db, product):
@@ -87,7 +87,7 @@ def test_create_product_database_error_returns_500_and_rolls_back(
 
     response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": "Database failure bouquet",
             "description": "Must not be committed",
@@ -128,11 +128,12 @@ def test_order_for_missing_product_returns_404(
 def test_order_database_error_returns_500_and_restores_stock(
     client,
     auth_headers,
+    admin_headers,
     monkeypatch,
 ):
     product_response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": "Rollback bouquet",
             "description": "Stock must survive a database failure",
