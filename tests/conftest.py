@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -22,6 +22,7 @@ os.environ.setdefault(
 )
 from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models import User  # noqa: E402
 
 
 if TEST_DATABASE_URL.startswith("sqlite"):
@@ -70,22 +71,23 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     app.dependency_overrides.clear()
 
 
-@pytest.fixture()
-def auth_headers(client: TestClient) -> dict[str, str]:
+def register_user(client: TestClient, email: str) -> None:
     register_response = client.post(
         "/auth/register",
         json={
-            "email": "user@example.com",
+            "email": email,
             "full_name": "Test User",
             "password": "strongpassword123",
         },
     )
     assert register_response.status_code == 201
 
+
+def login_headers(client: TestClient, email: str) -> dict[str, str]:
     token_response = client.post(
         "/auth/token",
         data={
-            "username": "user@example.com",
+            "username": email,
             "password": "strongpassword123",
         },
     )
@@ -93,3 +95,24 @@ def auth_headers(client: TestClient) -> dict[str, str]:
 
     token = token_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def auth_headers(client: TestClient) -> dict[str, str]:
+    """Headers of a regular (non-admin) registered user."""
+    register_user(client, "user@example.com")
+    return login_headers(client, "user@example.com")
+
+
+@pytest.fixture()
+def admin_headers(client: TestClient, db_session: Session) -> dict[str, str]:
+    """Headers of a user promoted to administrator directly in the database."""
+    register_user(client, "admin@example.com")
+
+    admin = db_session.scalar(
+        select(User).where(User.email == "admin@example.com")
+    )
+    admin.is_admin = True
+    db_session.commit()
+
+    return login_headers(client, "admin@example.com")

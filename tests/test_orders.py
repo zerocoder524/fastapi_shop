@@ -1,6 +1,6 @@
 def create_product(
     client,
-    auth_headers,
+    admin_headers,
     *,
     name: str,
     stock_quantity: int,
@@ -8,7 +8,7 @@ def create_product(
 ) -> dict:
     response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": name,
             "description": f"Test product: {name}",
@@ -34,10 +34,11 @@ def product_by_id(client, product_id: int) -> dict:
 def test_successful_order_reduces_stock_and_appears_in_my_orders(
     client,
     auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Букет красных роз",
         stock_quantity=12,
     )
@@ -78,10 +79,11 @@ def test_successful_order_reduces_stock_and_appears_in_my_orders(
 def test_zero_stock_returns_409_and_does_not_create_order(
     client,
     auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Букет белых роз",
         stock_quantity=0,
         price=3500,
@@ -116,10 +118,11 @@ def test_zero_stock_returns_409_and_does_not_create_order(
 def test_quantity_over_stock_returns_409_and_preserves_stock(
     client,
     auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Limited bouquet",
         stock_quantity=10,
     )
@@ -144,17 +147,18 @@ def test_quantity_over_stock_returns_409_and_preserves_stock(
 def test_mixed_order_is_atomic_when_one_product_has_no_stock(
     client,
     auth_headers,
+    admin_headers,
 ):
     unavailable = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Unavailable bouquet",
         stock_quantity=0,
         price=3500,
     )
     available = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Available bouquet",
         stock_quantity=10,
         price=3900,
@@ -192,10 +196,11 @@ def test_mixed_order_is_atomic_when_one_product_has_no_stock(
 def test_duplicate_product_in_one_order_returns_400(
     client,
     auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Duplicate test bouquet",
         stock_quantity=10,
     )

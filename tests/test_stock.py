@@ -5,14 +5,14 @@ from app.services import stock_service
 
 def create_product(
     client,
-    auth_headers,
+    admin_headers,
     *,
     name: str = "Stock bouquet",
     stock_quantity: int = 0,
 ) -> dict:
     response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": name,
             "description": "Stock test product",
@@ -45,17 +45,17 @@ def test_replenish_stock_requires_authentication(client):
 
 def test_replenish_stock_increases_balance_and_records_movement(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         stock_quantity=5,
     )
 
     response = client.post(
         f"/products/{product['id']}/stock/replenish",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "quantity": 7,
             "note": "Supplier delivery",
@@ -76,7 +76,7 @@ def test_replenish_stock_increases_balance_and_records_movement(
 
     history_response = client.get(
         f"/products/{product['id']}/stock/movements",
-        headers=auth_headers,
+        headers=admin_headers,
     )
     assert history_response.status_code == 200
 
@@ -92,17 +92,17 @@ def test_replenish_stock_increases_balance_and_records_movement(
 
 def test_product_patch_rejects_direct_stock_change(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         stock_quantity=5,
     )
 
     response = client.patch(
         f"/products/{product['id']}",
-        headers=auth_headers,
+        headers=admin_headers,
         json={"stock_quantity": 99},
     )
 
@@ -112,13 +112,13 @@ def test_product_patch_rejects_direct_stock_change(
 
 def test_replenish_quantity_must_be_positive(
     client,
-    auth_headers,
+    admin_headers,
 ):
-    product = create_product(client, auth_headers)
+    product = create_product(client, admin_headers)
 
     response = client.post(
         f"/products/{product['id']}/stock/replenish",
-        headers=auth_headers,
+        headers=admin_headers,
         json={"quantity": 0},
     )
 
@@ -127,11 +127,11 @@ def test_replenish_quantity_must_be_positive(
 
 def test_replenish_missing_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
     response = client.post(
         "/products/999999/stock/replenish",
-        headers=auth_headers,
+        headers=admin_headers,
         json={"quantity": 5},
     )
 
@@ -141,19 +141,19 @@ def test_replenish_missing_product_returns_404(
 
 def test_replenish_inactive_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
-    product = create_product(client, auth_headers)
+    product = create_product(client, admin_headers)
 
     delete_response = client.delete(
         f"/products/{product['id']}",
-        headers=auth_headers,
+        headers=admin_headers,
     )
     assert delete_response.status_code == 204
 
     response = client.post(
         f"/products/{product['id']}/stock/replenish",
-        headers=auth_headers,
+        headers=admin_headers,
         json={"quantity": 5},
     )
 
@@ -163,9 +163,9 @@ def test_replenish_inactive_product_returns_404(
 
 def test_stock_movements_require_authentication(
     client,
-    auth_headers,
+    admin_headers,
 ):
-    product = create_product(client, auth_headers)
+    product = create_product(client, admin_headers)
 
     response = client.get(
         f"/products/{product['id']}/stock/movements",
@@ -176,11 +176,11 @@ def test_stock_movements_require_authentication(
 
 def test_stock_movements_missing_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
     response = client.get(
         "/products/999999/stock/movements",
-        headers=auth_headers,
+        headers=admin_headers,
     )
 
     assert response.status_code == 404
@@ -189,17 +189,17 @@ def test_stock_movements_missing_product_returns_404(
 
 def test_order_records_negative_stock_movement(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         stock_quantity=10,
     )
 
     order_response = client.post(
         "/orders",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "items": [
                 {
@@ -214,7 +214,7 @@ def test_order_records_negative_stock_movement(
 
     history_response = client.get(
         f"/products/{product['id']}/stock/movements",
-        headers=auth_headers,
+        headers=admin_headers,
     )
     assert history_response.status_code == 200
 
@@ -232,12 +232,12 @@ def test_order_records_negative_stock_movement(
 
 def test_replenish_database_error_rolls_back_stock(
     client,
-    auth_headers,
+    admin_headers,
     monkeypatch,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         stock_quantity=0,
     )
 
@@ -252,7 +252,7 @@ def test_replenish_database_error_rolls_back_stock(
 
     response = client.post(
         f"/products/{product['id']}/stock/replenish",
-        headers=auth_headers,
+        headers=admin_headers,
         json={"quantity": 4},
     )
 
@@ -275,18 +275,18 @@ def test_adjust_stock_requires_authentication(client):
 
 def test_adjust_stock_up_records_positive_discrepancy(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Adjustment up bouquet",
         stock_quantity=5,
     )
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 8,
             "note": "Inventory count: three extra units found",
@@ -306,18 +306,18 @@ def test_adjust_stock_up_records_positive_discrepancy(
 
 def test_adjust_stock_down_records_negative_discrepancy(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Adjustment down bouquet",
         stock_quantity=10,
     )
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 4,
             "note": "Inventory count: damaged units written off",
@@ -334,18 +334,18 @@ def test_adjust_stock_down_records_negative_discrepancy(
 
 def test_adjust_stock_can_set_zero_actual_balance(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Zero count bouquet",
         stock_quantity=5,
     )
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 0,
             "note": "Inventory count: no units physically present",
@@ -361,13 +361,13 @@ def test_adjust_stock_can_set_zero_actual_balance(
 
 def test_adjust_stock_rejects_negative_actual_quantity(
     client,
-    auth_headers,
+    admin_headers,
 ):
-    product = create_product(client, auth_headers)
+    product = create_product(client, admin_headers)
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": -1,
             "note": "Invalid count",
@@ -379,13 +379,13 @@ def test_adjust_stock_rejects_negative_actual_quantity(
 
 def test_adjust_stock_requires_note(
     client,
-    auth_headers,
+    admin_headers,
 ):
-    product = create_product(client, auth_headers)
+    product = create_product(client, admin_headers)
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={"actual_quantity": 3},
     )
 
@@ -394,11 +394,11 @@ def test_adjust_stock_requires_note(
 
 def test_adjust_stock_missing_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
     response = client.post(
         "/products/999999/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 3,
             "note": "Inventory count",
@@ -411,19 +411,19 @@ def test_adjust_stock_missing_product_returns_404(
 
 def test_adjust_stock_inactive_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
-    product = create_product(client, auth_headers)
+    product = create_product(client, admin_headers)
 
     delete_response = client.delete(
         f"/products/{product['id']}",
-        headers=auth_headers,
+        headers=admin_headers,
     )
     assert delete_response.status_code == 204
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 3,
             "note": "Inventory count",
@@ -436,25 +436,25 @@ def test_adjust_stock_inactive_product_returns_404(
 
 def test_adjust_stock_same_quantity_returns_409_without_movement(
     client,
-    auth_headers,
+    admin_headers,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="No discrepancy bouquet",
         stock_quantity=5,
     )
 
     before_response = client.get(
         f"/products/{product['id']}/stock/movements",
-        headers=auth_headers,
+        headers=admin_headers,
     )
     assert before_response.status_code == 200
     before_history = before_response.json()
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 5,
             "note": "Inventory count matches system",
@@ -467,7 +467,7 @@ def test_adjust_stock_same_quantity_returns_409_without_movement(
 
     after_response = client.get(
         f"/products/{product['id']}/stock/movements",
-        headers=auth_headers,
+        headers=admin_headers,
     )
     assert after_response.status_code == 200
     assert after_response.json() == before_history
@@ -475,12 +475,12 @@ def test_adjust_stock_same_quantity_returns_409_without_movement(
 
 def test_adjust_stock_database_error_rolls_back_balance(
     client,
-    auth_headers,
+    admin_headers,
     monkeypatch,
 ):
     product = create_product(
         client,
-        auth_headers,
+        admin_headers,
         name="Adjustment rollback bouquet",
         stock_quantity=5,
     )
@@ -496,7 +496,7 @@ def test_adjust_stock_database_error_rolls_back_balance(
 
     response = client.post(
         f"/products/{product['id']}/stock/adjust",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "actual_quantity": 2,
             "note": "Inventory count",

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ...database import get_db
 from ...models import StockMovement, User
 from ...schemas import StockAdjustment, StockMovementRead, StockReplenish
-from ...security import get_current_user
+from ...security import require_admin
 from ...services.stock_service import (
     StockNoAdjustmentNeededError,
     StockPersistenceError,
@@ -28,7 +28,7 @@ def replenish_product_stock(
     product_id: int,
     data: StockReplenish,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> StockMovement:
     try:
         return replenish_stock(
@@ -57,7 +57,7 @@ def adjust_product_stock(
     product_id: int,
     data: StockAdjustment,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> StockMovement:
     try:
         return adjust_stock(
@@ -89,7 +89,7 @@ def adjust_product_stock(
 def product_stock_movements(
     product_id: int,
     db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> list[StockMovement]:
     try:
         return list_stock_movements(

@@ -22,10 +22,10 @@ def test_create_product_requires_authentication(client):
     assert response.status_code == 401
 
 
-def test_create_and_list_product(client, auth_headers):
+def test_create_and_list_product(client, admin_headers):
     create_response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": "Букет красных роз",
             "description": "15 красных роз",
@@ -49,10 +49,10 @@ def test_create_and_list_product(client, auth_headers):
     assert products[0]["stock_quantity"] == 12
 
 
-def test_update_product(client, auth_headers):
+def test_update_product(client, admin_headers):
     created_response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": "Update bouquet",
             "description": "Before update",
@@ -66,7 +66,7 @@ def test_update_product(client, auth_headers):
 
     response = client.patch(
         f"/products/{created['id']}",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "price": 2500,
         },
@@ -85,11 +85,11 @@ def test_update_product(client, auth_headers):
 
 def test_update_missing_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
     response = client.patch(
         "/products/999999",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "price": 2500,
         },
@@ -112,12 +112,12 @@ def test_update_product_requires_authentication(client):
 
 def test_soft_delete_product(
     client,
-    auth_headers,
+    admin_headers,
     db_session,
 ):
     created_response = client.post(
         "/products",
-        headers=auth_headers,
+        headers=admin_headers,
         json={
             "name": "Delete bouquet",
             "description": "Soft delete test",
@@ -131,7 +131,7 @@ def test_soft_delete_product(
 
     response = client.delete(
         f"/products/{created['id']}",
-        headers=auth_headers,
+        headers=admin_headers,
     )
 
     assert response.status_code == 204
@@ -159,11 +159,11 @@ def test_soft_delete_product(
 
 def test_delete_missing_product_returns_404(
     client,
-    auth_headers,
+    admin_headers,
 ):
     response = client.delete(
         "/products/999999",
-        headers=auth_headers,
+        headers=admin_headers,
     )
 
     assert response.status_code == 404
